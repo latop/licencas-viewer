@@ -88,6 +88,29 @@
       flex-wrap: wrap;
     }
 
+    .btn-main {
+      border-radius: 999px;
+      border: none;
+      padding: 8px 18px;
+      font-size: .9rem;
+      cursor: pointer;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .btn-main:hover {
+      background: var(--btn-bg-hover);
+    }
+
+    .btn-main:disabled {
+      opacity: .7;
+      cursor: default;
+    }
+
     .theme-toggle {
       border-radius: 999px;
       border: 1px solid var(--card-border);
@@ -96,6 +119,14 @@
       cursor: pointer;
       background: var(--card-bg);
       color: var(--text);
+      white-space: nowrap;
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
     }
 
     .view-tabs {
@@ -105,7 +136,8 @@
       border: 1px solid var(--card-border);
       padding: 2px;
       gap: 2px;
-      margin-bottom: 16px;
+      margin: 8px 0 16px;
+      flex-wrap: wrap;
     }
 
     .view-tab {
@@ -142,7 +174,7 @@
       background: var(--card-bg);
       border-radius: 12px;
       padding: 16px;
-      min-height: 170px;
+      min-height: 150px;
       box-shadow: 0 4px 10px var(--card-border);
       display: flex;
       flex-direction: column;
@@ -178,31 +210,13 @@
       margin-bottom: 6px;
     }
 
-    .actions {
+    .actions-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 8px;
       flex-wrap: wrap;
       margin-bottom: 8px;
-    }
-
-    button.action-btn {
-      border: none;
-      border-radius: 999px;
-      padding: 6px 14px;
-      font-size: .85rem;
-      cursor: pointer;
-      background: var(--btn-bg);
-      color: var(--btn-text);
-    }
-
-    button.action-btn:hover {
-      background: var(--btn-bg-hover);
-    }
-
-    button.action-btn:disabled {
-      opacity: .6;
     }
 
     .status-text {
@@ -242,7 +256,6 @@
       color: var(--error);
     }
 
-    /* Status badge (opção 3) */
     .status-pill {
       padding: 2px 8px;
       border-radius: 999px;
@@ -272,6 +285,8 @@
 
     @media (max-width: 600px) {
       body { padding: 16px; }
+      .top-bar { align-items: flex-start; }
+      .top-actions { justify-content: flex-start; }
     }
   </style>
 </head>
@@ -281,38 +296,35 @@
       <div>
         <h1>Consulta de Licenças por Cliente</h1>
         <p class="subtitle">
-          As consultas usam <strong>GET</strong> em
-          <code>/api/licenca?empresa=CÓDIGO</code> e retornam a licença (ex.: <code>30062026</code> → 30/06/2026).
+          Um clique em <strong>“Consultar todas as licenças”</strong> faz GET em
+          <code>/api/licenca?empresa=CÓDIGO</code> para todos os clientes de uma vez.
         </p>
       </div>
-      <button id="themeToggle" class="theme-toggle">🌗 Tema escuro</button>
+      <div class="top-actions">
+        <button id="btnConsultarTodos" class="btn-main">
+          🔄 Consultar todas as licenças
+        </button>
+        <button id="themeToggle" class="theme-toggle">🌗 Tema escuro</button>
+      </div>
     </div>
 
-    <!-- Abas das três opções -->
     <div class="view-tabs">
-      <button class="view-tab active" data-view="view1">Opção 1 – Padrão (Claro/Escuro)</button>
-      <button class="view-tab" data-view="view2">Opção 2 – Compacta / Mobile</button>
-      <button class="view-tab" data-view="view3">Opção 3 – Com status de vencimento</button>
+      <button class="view-tab active" data-view="viewStatus">Opção 3 – Status (padrão)</button>
+      <button class="view-tab" data-view="viewCompact">Opção 2 – Compacta / Mobile</button>
     </div>
 
-    <!-- OPÇÃO 1: Tema claro/escuro (cards padrão) -->
-    <section id="view1" class="section active">
-      <div class="grid" id="gridView1"></div>
+    <!-- Opção 3: status de vencimento (padrão) -->
+    <section id="viewStatus" class="section active">
+      <div class="grid" id="gridStatus"></div>
     </section>
 
-    <!-- OPÇÃO 2: Layout mais compacto (mobile) -->
-    <section id="view2" class="section">
-      <div class="grid" id="gridView2"></div>
-    </section>
-
-    <!-- OPÇÃO 3: Com status de vencimento -->
-    <section id="view3" class="section">
-      <div class="grid" id="gridView3"></div>
+    <!-- Opção 2: compacta / mobile -->
+    <section id="viewCompact" class="section">
+      <div class="grid" id="gridCompact"></div>
     </section>
   </div>
 
 <script>
-// Ajuste a URL se sua API estiver em HTTP em vez de HTTPS.
 const API_BASE_URL = "https://siglawebapi.azurewebsites.net/api/licenca";
 
 const COMPANIES = [
@@ -329,7 +341,13 @@ const COMPANIES = [
   { name:"GARCIA", code:"GAR", tipo:"Licença principal" }
 ];
 
-// ---------- Utilitários de data ----------
+// Guardar referências por código
+const viewState = {
+  status: {},  // Opção 3
+  compact: {}  // Opção 2
+};
+
+// ---- Utilitários de datas ----
 function parseDateFromDDMMAAAA(raw) {
   const s = String(raw).trim();
   if (!/^\d{8}$/.test(s)) return null;
@@ -369,7 +387,7 @@ function calcStatus(raw) {
   return { label: "OK por " + diffDays + " dia(s)", type: "ok", days: diffDays };
 }
 
-// ---------- Chamada à API (reutilizável) ----------
+// ---- Chamada à API ----
 async function fetchLicense(code) {
   const url = API_BASE_URL + "?empresa=" + encodeURIComponent(code);
   const resp = await fetch(url);
@@ -377,12 +395,13 @@ async function fetchLicense(code) {
   if (!resp.ok) {
     throw new Error(text || ("HTTP " + resp.status));
   }
-  // se vier "30062026" com aspas, limpa
   return text.replace(/^"+|"+$/g, "").trim();
 }
 
-// ---------- Opção 1: cards padrão ----------
-function renderResultView1(container, rawValue) {
+// ---- Renderizações ----
+
+// Compacta / mobile (Opção 2)
+function renderCompact(container, rawValue) {
   container.classList.remove("empty");
   container.innerHTML = "";
 
@@ -400,163 +419,8 @@ function renderResultView1(container, rawValue) {
   }
 }
 
-function createCardView1(company) {
-  const card = document.createElement("div");
-  card.className = "card";
-
-  const header = document.createElement("div");
-  header.className = "card-header";
-
-  const name = document.createElement("div");
-  name.className = "company-name";
-  name.textContent = company.name;
-
-  const pill = document.createElement("div");
-  pill.className = "code-pill";
-  pill.textContent = "Código: " + company.code;
-
-  header.appendChild(name);
-  header.appendChild(pill);
-
-  const meta = document.createElement("div");
-  meta.className = "meta";
-  meta.textContent = company.tipo;
-
-  const actions = document.createElement("div");
-  actions.className = "actions";
-
-  const btn = document.createElement("button");
-  btn.className = "action-btn";
-  btn.textContent = "Consultar licença";
-
-  const status = document.createElement("span");
-  status.className = "status-text";
-
-  const result = document.createElement("div");
-  result.className = "result empty";
-  result.textContent = "Nenhuma consulta feita ainda.";
-
-  actions.appendChild(btn);
-  actions.appendChild(status);
-
-  card.appendChild(header);
-  card.appendChild(meta);
-  card.appendChild(actions);
-  card.appendChild(result);
-
-  btn.addEventListener("click", async () => {
-    btn.disabled = true;
-    btn.textContent = "Consultando...";
-    result.classList.add("empty");
-    result.textContent = "Consultando API...";
-    status.textContent = "";
-
-    try {
-      const value = await fetchLicense(company.code);
-      renderResultView1(result, value);
-      status.textContent = "Última consulta OK";
-    } catch (e) {
-      result.classList.remove("empty");
-      result.innerHTML = "<span class='error'>" + e.message + "</span>";
-      status.textContent = "Erro ao consultar";
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "Consultar licença";
-    }
-  });
-
-  return card;
-}
-
-// ---------- Opção 2: layout compacto / mobile ----------
-function renderResultView2(container, rawValue) {
-  container.classList.remove("empty");
-  container.innerHTML = "";
-
-  const main = document.createElement("div");
-  main.className = "value-main";
-  main.textContent = rawValue;
-  container.appendChild(main);
-
-  const fmt = formatDate(rawValue);
-  if (fmt) {
-    const f = document.createElement("div");
-    f.className = "value-formatted";
-    f.textContent = "Válido até: " + fmt;
-    container.appendChild(f);
-  }
-}
-
-function createCardView2(company) {
-  const card = document.createElement("div");
-  card.className = "card";
-
-  const header = document.createElement("div");
-  header.className = "card-header";
-
-  const name = document.createElement("div");
-  name.className = "company-name";
-  name.textContent = company.name;
-
-  const pill = document.createElement("div");
-  pill.className = "code-pill";
-  pill.textContent = company.code;
-
-  header.appendChild(name);
-  header.appendChild(pill);
-
-  const meta = document.createElement("div");
-  meta.className = "meta";
-  meta.textContent = company.tipo;
-
-  const actions = document.createElement("div");
-  actions.className = "actions";
-
-  const btn = document.createElement("button");
-  btn.className = "action-btn";
-  btn.textContent = "Consultar";
-
-  const status = document.createElement("span");
-  status.className = "status-text";
-
-  const result = document.createElement("div");
-  result.className = "result empty";
-  result.textContent = "Toque em Consultar.";
-
-  actions.appendChild(btn);
-  actions.appendChild(status);
-
-  card.appendChild(header);
-  card.appendChild(meta);
-  card.appendChild(actions);
-  card.appendChild(result);
-
-  btn.addEventListener("click", async () => {
-    btn.disabled = true;
-    btn.textContent = "Buscando...";
-    result.classList.add("empty");
-    result.textContent = "Consultando API...";
-    status.textContent = "";
-
-    try {
-      const value = await fetchLicense(company.code);
-      renderResultView2(result, value);
-      status.textContent = "OK";
-    } catch (e) {
-      result.classList.remove("empty");
-      result.innerHTML = "<span class='error'>" + e.message + "</span>";
-      status.textContent = "Erro";
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "Consultar";
-    }
-  });
-
-  return card;
-}
-
-// ---------- Opção 3: com status de vencimento ----------
-function renderResultView3(card, resultEl, statusPill, rawValue) {
+// Status de vencimento (Opção 3)
+function renderStatus(card, resultEl, statusPill, rawValue) {
   resultEl.classList.remove("empty");
   resultEl.innerHTML = "";
 
@@ -587,7 +451,10 @@ function renderResultView3(card, resultEl, statusPill, rawValue) {
   }
 }
 
-function createCardView3(company) {
+// ---- Criação dos cards ----
+
+// Opção 2 – compacta
+function createCardCompact(company) {
   const card = document.createElement("div");
   card.className = "card";
 
@@ -609,65 +476,167 @@ function createCardView3(company) {
   meta.className = "meta";
   meta.textContent = company.tipo;
 
-  const actions = document.createElement("div");
-  actions.className = "actions";
+  const actionsRow = document.createElement("div");
+  actionsRow.className = "actions-row";
 
-  const btn = document.createElement("button");
-  btn.className = "action-btn";
-  btn.textContent = "Consultar";
+  const status = document.createElement("span");
+  status.className = "status-text";
+  status.textContent = "Aguardando consulta.";
+
+  const filler = document.createElement("span");
+  filler.textContent = "";
+
+  actionsRow.appendChild(status);
+  actionsRow.appendChild(filler);
+
+  const result = document.createElement("div");
+  result.className = "result empty";
+  result.textContent = "Use “Consultar todas as licenças” para carregar os dados.";
+
+  card.appendChild(header);
+  card.appendChild(meta);
+  card.appendChild(actionsRow);
+  card.appendChild(result);
+
+  viewState.compact[company.code] = {
+    resultEl: result,
+    statusEl: status
+  };
+
+  return card;
+}
+
+// Opção 3 – status de vencimento
+function createCardStatus(company) {
+  const card = document.createElement("div");
+  card.className = "card";
+
+  const header = document.createElement("div");
+  header.className = "card-header";
+
+  const name = document.createElement("div");
+  name.className = "company-name";
+  name.textContent = company.name;
+
+  const pill = document.createElement("div");
+  pill.className = "code-pill";
+  pill.textContent = company.code;
+
+  header.appendChild(name);
+  header.appendChild(pill);
+
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  meta.textContent = company.tipo;
+
+  const actionsRow = document.createElement("div");
+  actionsRow.className = "actions-row";
 
   const statusPill = document.createElement("span");
   statusPill.className = "status-pill status-warning";
   statusPill.textContent = "Sem dados";
 
+  const statusText = document.createElement("span");
+  statusText.className = "status-text";
+  statusText.textContent = "";
+
+  actionsRow.appendChild(statusPill);
+  actionsRow.appendChild(statusText);
+
   const result = document.createElement("div");
   result.className = "result empty";
-  result.textContent = "Clique em Consultar para ver a licença.";
-
-  actions.appendChild(btn);
-  actions.appendChild(statusPill);
+  result.textContent = "Clique em “Consultar todas as licenças” para ver a validade.";
 
   card.appendChild(header);
   card.appendChild(meta);
-  card.appendChild(actions);
+  card.appendChild(actionsRow);
   card.appendChild(result);
 
-  btn.addEventListener("click", async () => {
-    btn.disabled = true;
-    btn.textContent = "Buscando...";
-    result.classList.add("empty");
-    result.textContent = "Consultando API...";
-    statusPill.textContent = "Carregando...";
-
-    try {
-      const value = await fetchLicense(company.code);
-      renderResultView3(card, result, statusPill, value);
-    } catch (e) {
-      result.classList.remove("empty");
-      result.innerHTML = "<div class='error'>" + e.message + "</div>";
-      statusPill.textContent = "Erro";
-      statusPill.className = "status-pill status-expired";
-      card.classList.remove("ok","warning","expired");
-      card.classList.add("expired");
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "Consultar";
-    }
-  });
+  viewState.status[company.code] = {
+    cardEl: card,
+    resultEl: result,
+    statusPillEl: statusPill,
+    statusTextEl: statusText
+  };
 
   return card;
 }
 
-// ---------- Inicialização da página ----------
+// ---- Consultar todas ----
+async function consultarTodas() {
+  const btn = document.getElementById("btnConsultarTodos");
+  btn.disabled = true;
+  btn.textContent = "Consultando todas...";
+
+  // Estado inicial de "consultando"
+  COMPANIES.forEach(c => {
+    const vc = viewState.compact[c.code];
+    if (vc) {
+      vc.statusEl.textContent = "Consultando...";
+      vc.resultEl.classList.add("empty");
+      vc.resultEl.textContent = "Consultando API...";
+    }
+    const vs = viewState.status[c.code];
+    if (vs) {
+      vs.statusPillEl.textContent = "Carregando...";
+      vs.statusPillEl.className = "status-pill status-warning";
+      vs.resultEl.classList.add("empty");
+      vs.resultEl.textContent = "Consultando API...";
+      vs.cardEl.classList.remove("ok","warning","expired");
+    }
+  });
+
+  for (const c of COMPANIES) {
+    let value;
+    try {
+      value = await fetchLicense(c.code);
+    } catch (e) {
+      const msg = "Erro: " + e.message;
+
+      const vc = viewState.compact[c.code];
+      if (vc) {
+        vc.resultEl.classList.remove("empty");
+        vc.resultEl.innerHTML = "<span class='error'>" + msg + "</span>";
+        vc.statusEl.textContent = "Erro";
+      }
+
+      const vs = viewState.status[c.code];
+      if (vs) {
+        vs.resultEl.classList.remove("empty");
+        vs.resultEl.innerHTML = "<span class='error'>" + msg + "</span>";
+        vs.statusPillEl.textContent = "Erro";
+        vs.statusPillEl.className = "status-pill status-expired";
+        vs.cardEl.classList.add("expired");
+        if (vs.statusTextEl) vs.statusTextEl.textContent = "";
+      }
+      continue;
+    }
+
+    const vc = viewState.compact[c.code];
+    if (vc) {
+      renderCompact(vc.resultEl, value);
+      vc.statusEl.textContent = "OK";
+    }
+
+    const vs = viewState.status[c.code];
+    if (vs) {
+      renderStatus(vs.cardEl, vs.resultEl, vs.statusPillEl, value);
+      if (vs.statusTextEl) vs.statusTextEl.textContent = "";
+    }
+  }
+
+  btn.disabled = false;
+  btn.textContent = "🔄 Consultar todas as licenças";
+}
+
+// ---- Inicialização ----
 function initViews() {
-  const grid1 = document.getElementById("gridView1");
-  const grid2 = document.getElementById("gridView2");
-  const grid3 = document.getElementById("gridView3");
+  const gridStatus = document.getElementById("gridStatus");
+  const gridCompact = document.getElementById("gridCompact");
 
   COMPANIES.forEach(c => {
-    grid1.appendChild(createCardView1(c));
-    grid2.appendChild(createCardView2(c));
-    grid3.appendChild(createCardView3(c));
+    gridStatus.appendChild(createCardStatus(c));
+    gridCompact.appendChild(createCardCompact(c));
   });
 }
 
@@ -702,10 +671,16 @@ function initThemeToggle() {
   });
 }
 
+function initConsultarTodas() {
+  const btn = document.getElementById("btnConsultarTodos");
+  btn.addEventListener("click", consultarTodas);
+}
+
 function init() {
   initViews();
   initTabs();
   initThemeToggle();
+  initConsultarTodas();
 }
 
 init();
