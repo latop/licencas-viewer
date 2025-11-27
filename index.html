@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <title>Consulta de Licenças por Cliente</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    :root {
+      --bg: #f5f5f7;
+      --text: #222;
+      --card-bg: #ffffff;
+      --card-border: rgba(0,0,0,0.05);
+      --subtext: #666;
+      --chip-bg: #eef2ff;
+      --chip-border: #c7d2fe;
+      --chip-text: #3730a3;
+      --btn-bg: #2563eb;
+      --btn-bg-hover: #1d4ed8;
+      --btn-text: #ffffff;
+      --result-bg: #f9fafb;
+      --result-border: #dddddd;
+      --error: #b91c1c;
+      --ok-bg: #dcfce7;
+      --ok-text: #166534;
+      --warn-bg: #ffedd5;
+      --warn-text: #c2410c;
+      --exp-bg: #fee2e2;
+      --exp-text: #b91c1c;
+    }
+
+    [data-theme="dark"] {
+      --bg: #020617;
+      --text: #e5e7eb;
+      --card-bg: #020617;
+      --card-border: rgba(148,163,184,0.4);
+      --subtext: #9ca3af;
+      --chip-bg: #111827;
+      --chip-border: #4b5563;
+      --chip-text: #e5e7eb;
+      --btn-bg: #2563eb;
+      --btn-bg-hover: #1d4ed8;
+      --btn-text: #f9fafb;
+      --result-bg: #020617;
+      --result-border: #1f2937;
+      --error: #fecaca;
+      --ok-bg: #064e3b;
+      --ok-text: #bbf7d0;
+      --warn-bg: #78350f;
+      --warn-text: #fed7aa;
+      --exp-bg: #450a0a;
+      --exp-text: #fecaca;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      transition: background .2s, color .2s;
+    }
+
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 4px;
+      font-size: 1.9rem;
+    }
+
+    .subtitle {
+      margin: 0 0 12px;
+      color: var(--subtext);
+      font-size: .9rem;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .theme-toggle {
+      border-radius: 999px;
+      border: 1px solid var(--card-border);
+      padding: 4px 12px;
+      font-size: .8rem;
+      cursor: pointer;
+      background: var(--card-bg);
+      color: var(--text);
+    }
+
+    .view-tabs {
+      display: inline-flex;
+      border-radius: 999px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      padding: 2px;
+      gap: 2px;
+      margin-bottom: 16px;
+    }
+
+    .view-tab {
+      border-radius: 999px;
+      border: none;
+      padding: 6px 12px;
+      font-size: .8rem;
+      cursor: pointer;
+      background: transparent;
+      color: var(--subtext);
+      white-space: nowrap;
+    }
+
+    .view-tab.active {
+      background: var(--btn-bg);
+      color: var(--btn-text);
+    }
+
+    .section {
+      display: none;
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 16px;
+      min-height: 170px;
+      box-shadow: 0 4px 10px var(--card-border);
+      display: flex;
+      flex-direction: column;
+      border-left: 4px solid transparent;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: baseline;
+      margin-bottom: 6px;
+    }
+
+    .company-name {
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    .code-pill {
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: var(--chip-bg);
+      color: var(--chip-text);
+      border: 1px solid var(--chip-border);
+      font-size: .75rem;
+      white-space: nowrap;
+    }
+
+    .meta {
+      font-size: .8rem;
+      color: var(--subtext);
+      margin-bottom: 6px;
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    button.action-btn {
+      border: none;
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: .85rem;
+      cursor: pointer;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+    }
+
+    button.action-btn:hover {
+      background: var(--btn-bg-hover);
+    }
+
+    button.action-btn:disabled {
+      opacity: .6;
+    }
+
+    .status-text {
+      font-size: .8rem;
+      color: var(--subtext);
+    }
+
+    .result {
+      flex: 1;
+      background: var(--result-bg);
+      border-radius: 8px;
+      padding: 10px;
+      border: 1px dashed var(--result-border);
+      font-size: .85rem;
+      overflow: auto;
+    }
+
+    .result.empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--subtext);
+      font-style: italic;
+    }
+
+    .value-main {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .value-formatted {
+      font-size: .85rem;
+      color: var(--subtext);
+    }
+
+    .error {
+      color: var(--error);
+    }
+
+    /* Status badge (opção 3) */
+    .status-pill {
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: .75rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .status-ok {
+      background: var(--ok-bg);
+      color: var(--ok-text);
+    }
+
+    .status-warning {
+      background: var(--warn-bg);
+      color: var(--warn-text);
+    }
+
+    .status-expired {
+      background: var(--exp-bg);
+      color: var(--exp-text);
+    }
+
+    .card.ok       { border-left-color: #16a34a; }
+    .card.warning  { border-left-color: #f97316; }
+    .card.expired  { border-left-color: #dc2626; }
+
+    @media (max-width: 600px) {
+      body { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="top-bar">
+      <div>
+        <h1>Consulta de Licenças por Cliente</h1>
+        <p class="subtitle">
+          As consultas usam <strong>GET</strong> em
+          <code>/api/licenca?empresa=CÓDIGO</code> e retornam a licença (ex.: <code>30062026</code> → 30/06/2026).
+        </p>
+      </div>
+      <button id="themeToggle" class="theme-toggle">🌗 Tema escuro</button>
+    </div>
+
+    <!-- Abas das três opções -->
+    <div class="view-tabs">
+      <button class="view-tab active" data-view="view1">Opção 1 – Padrão (Claro/Escuro)</button>
+      <button class="view-tab" data-view="view2">Opção 2 – Compacta / Mobile</button>
+      <button class="view-tab" data-view="view3">Opção 3 – Com status de vencimento</button>
+    </div>
+
+    <!-- OPÇÃO 1: Tema claro/escuro (cards padrão) -->
+    <section id="view1" class="section active">
+      <div class="grid" id="gridView1"></div>
+    </section>
+
+    <!-- OPÇÃO 2: Layout mais compacto (mobile) -->
+    <section id="view2" class="section">
+      <div class="grid" id="gridView2"></div>
+    </section>
+
+    <!-- OPÇÃO 3: Com status de vencimento -->
+    <section id="view3" class="section">
+      <div class="grid" id="gridView3"></div>
+    </section>
+  </div>
+
+<script>
+// Ajuste a URL se sua API estiver em HTTP em vez de HTTPS.
+const API_BASE_URL = "https://siglawebapi.azurewebsites.net/api/licenca";
+
+const COMPANIES = [
+  { name:"MODERN", code:"MWM", tipo:"Licença principal" },
+  { name:"SIDERAL", code:"SID", tipo:"Licença principal" },
+  { name:"TMA (Sideral)", code:"TMA", tipo:"Subsistema / Filial" },
+  { name:"JOAB", code:"FSB", tipo:"Licença principal" },
+  { name:"LEVU Aérea", code:"LVU", tipo:"Aérea" },
+  { name:"LEVU Funcionários", code:"LLL", tipo:"Funcionários" },
+  { name:"BRASPRESS Aérea", code:"BPC", tipo:"Aérea" },
+  { name:"BRASPRESS Funcionários", code:"BAA", tipo:"Funcionários" },
+  { name:"AVION Aérea", code:"AEB", tipo:"Aérea" },
+  { name:"AVION Funcionários", code:"AEE", tipo:"Funcionários" },
+  { name:"GARCIA", code:"GAR", tipo:"Licença principal" }
+];
+
+// ---------- Utilitários de data ----------
+function parseDateFromDDMMAAAA(raw) {
+  const s = String(raw).trim();
+  if (!/^\d{8}$/.test(s)) return null;
+  const dd = parseInt(s.slice(0,2), 10);
+  const mm = parseInt(s.slice(2,4), 10);
+  const yyyy = parseInt(s.slice(4), 10);
+  if (dd < 1 || dd > 31 || mm < 1 || mm > 12) return null;
+  return new Date(yyyy, mm - 1, dd);
+}
+
+function formatDate(raw) {
+  const d = parseDateFromDDMMAAAA(raw);
+  if (!d) return null;
+  const dd = String(d.getDate()).padStart(2,"0");
+  const mm = String(d.getMonth()+1).padStart(2,"0");
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+function calcStatus(raw) {
+  const d = parseDateFromDDMMAAAA(raw);
+  if (!d) return { label: "Data inválida", type: "warning", days: null };
+
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  d.setHours(0,0,0,0);
+
+  const diffMs = d - today;
+  const diffDays = Math.round(diffMs / (1000*60*60*24));
+
+  if (diffDays < 0) {
+    return { label: "Vencida há " + Math.abs(diffDays) + " dia(s)", type: "expired", days: diffDays };
+  }
+  if (diffDays <= 30) {
+    return { label: "A vencer em " + diffDays + " dia(s)", type: "warning", days: diffDays };
+  }
+  return { label: "OK por " + diffDays + " dia(s)", type: "ok", days: diffDays };
+}
+
+// ---------- Chamada à API (reutilizável) ----------
+async function fetchLicense(code) {
+  const url = API_BASE_URL + "?empresa=" + encodeURIComponent(code);
+  const resp = await fetch(url);
+  const text = await resp.text();
+  if (!resp.ok) {
+    throw new Error(text || ("HTTP " + resp.status));
+  }
+  // se vier "30062026" com aspas, limpa
+  return text.replace(/^"+|"+$/g, "").trim();
+}
+
+// ---------- Opção 1: cards padrão ----------
+function renderResultView1(container, rawValue) {
+  container.classList.remove("empty");
+  container.innerHTML = "";
+
+  const main = document.createElement("div");
+  main.className = "value-main";
+  main.textContent = rawValue;
+  container.appendChild(main);
+
+  const fmt = formatDate(rawValue);
+  if (fmt) {
+    const f = document.createElement("div");
+    f.className = "value-formatted";
+    f.textContent = "Válido até: " + fmt;
+    container.appendChild(f);
+  }
+}
+
+function createCardView1(company) {
+  const card = document.createElement("div");
+  card.className = "card";
+
+  const header = document.createElement("div");
+  header.className = "card-header";
+
+  const name = document.createElement("div");
+  name.className = "company-name";
+  name.textContent = company.name;
+
+  const pill = document.createElement("div");
+  pill.className = "code-pill";
+  pill.textContent = "Código: " + company.code;
+
+  header.appendChild(name);
+  header.appendChild(pill);
+
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  meta.textContent = company.tipo;
+
+  const actions = document.createElement("div");
+  actions.className = "actions";
+
+  const btn = document.createElement("button");
+  btn.className = "action-btn";
+  btn.textContent = "Consultar licença";
+
+  const status = document.createElement("span");
+  status.className = "status-text";
+
+  const result = document.createElement("div");
+  result.className = "result empty";
+  result.textContent = "Nenhuma consulta feita ainda.";
+
+  actions.appendChild(btn);
+  actions.appendChild(status);
+
+  card.appendChild(header);
+  card.appendChild(meta);
+  card.appendChild(actions);
+  card.appendChild(result);
+
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    btn.textContent = "Consultando...";
+    result.classList.add("empty");
+    result.textContent = "Consultando API...";
+    status.textContent = "";
+
+    try {
+      const value = await fetchLicense(company.code);
+      renderResultView1(result, value);
+      status.textContent = "Última consulta OK";
+    } catch (e) {
+      result.classList.remove("empty");
+      result.innerHTML = "<span class='error'>" + e.message + "</span>";
+      status.textContent = "Erro ao consultar";
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Consultar licença";
+    }
+  });
+
+  return card;
+}
+
+// ---------- Opção 2: layout compacto / mobile ----------
+function renderResultView2(container, rawValue) {
+  container.classList.remove("empty");
+  container.innerHTML = "";
+
+  const main = document.createElement("div");
+  main.className = "value-main";
+  main.textContent = rawValue;
+  container.appendChild(main);
+
+  const fmt = formatDate(rawValue);
+  if (fmt) {
+    const f = document.createElement("div");
+    f.className = "value-formatted";
+    f.textContent = "Válido até: " + fmt;
+    container.appendChild(f);
+  }
+}
+
+function createCardView2(company) {
+  const card = document.createElement("div");
+  card.className = "card";
+
+  const header = document.createElement("div");
+  header.className = "card-header";
+
+  const name = document.createElement("div");
+  name.className = "company-name";
+  name.textContent = company.name;
+
+  const pill = document.createElement("div");
+  pill.className = "code-pill";
+  pill.textContent = company.code;
+
+  header.appendChild(name);
+  header.appendChild(pill);
+
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  meta.textContent = company.tipo;
+
+  const actions = document.createElement("div");
+  actions.className = "actions";
+
+  const btn = document.createElement("button");
+  btn.className = "action-btn";
+  btn.textContent = "Consultar";
+
+  const status = document.createElement("span");
+  status.className = "status-text";
+
+  const result = document.createElement("div");
+  result.className = "result empty";
+  result.textContent = "Toque em Consultar.";
+
+  actions.appendChild(btn);
+  actions.appendChild(status);
+
+  card.appendChild(header);
+  card.appendChild(meta);
+  card.appendChild(actions);
+  card.appendChild(result);
+
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    btn.textContent = "Buscando...";
+    result.classList.add("empty");
+    result.textContent = "Consultando API...";
+    status.textContent = "";
+
+    try {
+      const value = await fetchLicense(company.code);
+      renderResultView2(result, value);
+      status.textContent = "OK";
+    } catch (e) {
+      result.classList.remove("empty");
+      result.innerHTML = "<span class='error'>" + e.message + "</span>";
+      status.textContent = "Erro";
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Consultar";
+    }
+  });
+
+  return card;
+}
+
+// ---------- Opção 3: com status de vencimento ----------
+function renderResultView3(card, resultEl, statusPill, rawValue) {
+  resultEl.classList.remove("empty");
+  resultEl.innerHTML = "";
+
+  const main = document.createElement("div");
+  main.className = "value-main";
+  main.textContent = rawValue;
+  resultEl.appendChild(main);
+
+  const fmt = formatDate(rawValue);
+  if (fmt) {
+    const f = document.createElement("div");
+    f.className = "value-formatted";
+    f.textContent = "Válido até: " + fmt;
+    resultEl.appendChild(f);
+
+    const st = calcStatus(rawValue);
+    statusPill.textContent = st.label;
+    statusPill.className = "status-pill " +
+      (st.type === "ok" ? "status-ok" :
+       st.type === "warning" ? "status-warning" : "status-expired");
+
+    card.classList.remove("ok","warning","expired");
+    card.classList.add(st.type);
+  } else {
+    statusPill.textContent = "Não foi possível interpretar a data";
+    statusPill.className = "status-pill status-warning";
+    card.classList.remove("ok","warning","expired");
+  }
+}
+
+function createCardView3(company) {
+  const card = document.createElement("div");
+  card.className = "card";
+
+  const header = document.createElement("div");
+  header.className = "card-header";
+
+  const name = document.createElement("div");
+  name.className = "company-name";
+  name.textContent = company.name;
+
+  const pill = document.createElement("div");
+  pill.className = "code-pill";
+  pill.textContent = company.code;
+
+  header.appendChild(name);
+  header.appendChild(pill);
+
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  meta.textContent = company.tipo;
+
+  const actions = document.createElement("div");
+  actions.className = "actions";
+
+  const btn = document.createElement("button");
+  btn.className = "action-btn";
+  btn.textContent = "Consultar";
+
+  const statusPill = document.createElement("span");
+  statusPill.className = "status-pill status-warning";
+  statusPill.textContent = "Sem dados";
+
+  const result = document.createElement("div");
+  result.className = "result empty";
+  result.textContent = "Clique em Consultar para ver a licença.";
+
+  actions.appendChild(btn);
+  actions.appendChild(statusPill);
+
+  card.appendChild(header);
+  card.appendChild(meta);
+  card.appendChild(actions);
+  card.appendChild(result);
+
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    btn.textContent = "Buscando...";
+    result.classList.add("empty");
+    result.textContent = "Consultando API...";
+    statusPill.textContent = "Carregando...";
+
+    try {
+      const value = await fetchLicense(company.code);
+      renderResultView3(card, result, statusPill, value);
+    } catch (e) {
+      result.classList.remove("empty");
+      result.innerHTML = "<div class='error'>" + e.message + "</div>";
+      statusPill.textContent = "Erro";
+      statusPill.className = "status-pill status-expired";
+      card.classList.remove("ok","warning","expired");
+      card.classList.add("expired");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Consultar";
+    }
+  });
+
+  return card;
+}
+
+// ---------- Inicialização da página ----------
+function initViews() {
+  const grid1 = document.getElementById("gridView1");
+  const grid2 = document.getElementById("gridView2");
+  const grid3 = document.getElementById("gridView3");
+
+  COMPANIES.forEach(c => {
+    grid1.appendChild(createCardView1(c));
+    grid2.appendChild(createCardView2(c));
+    grid3.appendChild(createCardView3(c));
+  });
+}
+
+function initTabs() {
+  const tabs = document.querySelectorAll(".view-tab");
+  const sections = document.querySelectorAll(".section");
+
+  tabs.forEach(tab => {
+    tab.addEventListener("click", () => {
+      const target = tab.getAttribute("data-view");
+
+      tabs.forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+
+      sections.forEach(sec => {
+        if (sec.id === target) sec.classList.add("active");
+        else sec.classList.remove("active");
+      });
+    });
+  });
+}
+
+function initThemeToggle() {
+  const root = document.documentElement;
+  const btn = document.getElementById("themeToggle");
+
+  btn.addEventListener("click", () => {
+    const current = root.getAttribute("data-theme") || "light";
+    const next = current === "light" ? "dark" : "light";
+    root.setAttribute("data-theme", next);
+    btn.textContent = next === "light" ? "🌗 Tema escuro" : "🌞 Tema claro";
+  });
+}
+
+function init() {
+  initViews();
+  initTabs();
+  initThemeToggle();
+}
+
+init();
+</script>
+</body>
+</html>
